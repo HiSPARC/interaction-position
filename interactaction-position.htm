@@ -1,0 +1,202 @@
+<html>
+ <head>
+  <link rel="stylesheet" type="text/css" media="screen" href="http://data.hisparc.nl/media/css/jquery.jqplot.min.css" />
+  <script type="text/javascript" src="http://data.hisparc.nl/media/javascript/jquery-1.4.4.min.js"></script>
+  <script type="text/javascript" src="http://data.hisparc.nl/media/javascript/jquery.jqplot.min.js"></script>
+  <script type="text/javascript" src="http://data.hisparc.nl/media/javascript/jqplotPlugins/jqplot.cursor.min.js"></script>
+  <script type="text/javascript" src="http://data.hisparc.nl/media/javascript/jqplotPlugins/jqplot.dateAxisRenderer.min.js"></script>
+  <script type="text/javascript" src="http://data.hisparc.nl/media/javascript/jqplotPlugins/jqplot.categoryAxisRenderer.min.js"></script>
+  <script type="text/javascript" src="http://data.hisparc.nl/media/javascript/jqplotPlugins/jqplot.canvasTextRenderer.min.js"></script>
+  <script type="text/javascript" src="http://data.hisparc.nl/media/javascript/jqplotPlugins/jqplot.canvasAxisLabelRenderer.min.js"></script>
+  <script type="text/javascript">
+
+   c=299792458;
+
+   var graphSize=0;
+
+   var x,y,z,t;       // shower
+   var x1,y1,z1,t1;   // station1
+   var x2,y2,z2,t2;   // station2
+   var x2,y2,z2,t2;   // station3
+   var A,B,C,D,E,F,G;
+   var V,W,P,Q,R,T;
+
+   function WGS84toECEF(lat, lon, alt){
+    var a=6378137;
+    var b=6356752.315;
+    lon=toRad(lon);
+    lat=toRad(lat);
+    var x=(a+alt)*Math.cos(lat)*Math.sin(lon);
+    var y=(b+alt)*Math.sin(lat);
+    var z=(a+alt)*Math.cos(lat)*Math.cos(lon);
+    var coordinate={"x":x,"y":y,"z":z};
+    return coordinate;
+   }
+
+//van jsparc.js!!!
+function toRad(x){
+ return x*Math.atan(1)/45;
+}
+
+   coord=WGS84toECEF(52.35,4.95,10000);
+
+   x=coord.x;
+   y=coord.y;
+   z=coord.z;
+
+   coord=WGS84toECEF(52.3559272389,4.95113846066,55.0537963063);
+
+   x1=coord.x;
+   y1=coord.y;
+   z1=coord.z;
+   t1=Math.sqrt((x-x1)*(x-x1)+(y-y1)*(y-y1)+(z-z1)*(z-z1))/c;
+
+   coord=WGS84toECEF(52.3552968123,4.95009988137,54.784065309);
+
+   x2=coord.x;
+   y2=coord.y;
+   z2=coord.z;
+   t2=Math.sqrt((x-x2)*(x-x2)+(y-y2)*(y-y2)+(z-z2)*(z-z2))/c;
+
+   coord=WGS84toECEF(52.3562664259,4.95294989286,48.7995043574);
+
+   x3=coord.x;
+   y3=coord.y;
+   z3=coord.z;
+   t3=Math.sqrt((x-x3)*(x-x3)+(y-y3)*(y-y3)+(z-z3)*(z-z3))/c;
+
+   function interactionVariables(){
+    A=2*((x1-x2)*(y1-y3)-(x1-x3)*(y1-y2));
+    B=2*((x1-x3)*(z1-z2)-(x1-x2)*(z1-z3));
+    C=2*((x1-x2)*(t3-t1)-(x1-x3)*(t2-t1))*c*c;
+    D=(x1-x3)*((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)+(z1-z2)*(z1-z2)-(t1-t2)*(t1-t2)*c*c);
+    D-=(x1-x2)*((x1-x3)*(x1-x3)+(y1-y3)*(y1-y3)+(z1-z3)*(z1-z3)-(t1-t3)*(t1-t3)*c*c);
+    E=2*((y1-y2)*(z1-z3)-(y1-y3)*(z1-z2));
+    F=2*((y1-y3)*(t2-t1)-(y1-y2)*(t3-t1))*c*c;
+    G=(y1-y2)*((x1-x3)*(x1-x3)+(y1-y3)*(y1-y3)+(z1-z3)*(z1-z3)-(t1-t3)*(t1-t3)*c*c);
+    G-=(y1-y3)*((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)+(z1-z2)*(z1-z2)-(t1-t2)*(t1-t2)*c*c);
+
+    T=A*A+B*B+E*E;
+
+    V=(B*C+E*F)/T;
+    W=(B*D+E*G)/T;
+
+    P=(D*D+G*G)/T;
+    Q=2*(C*D+F*G)/T;
+    R=(C*C+F*F-c*c*A*A)/T;
+   }
+
+   function calculateTrace(){
+
+    var maxHeight=40000;
+
+    var tmax=Math.sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)+(z1-z2)*(z1-z2));
+    tmax+=Math.sqrt((x3-x2)*(x3-x2)+(y3-y2)*(y3-y2)+(z3-z2)*(z3-z2));
+    tmax+=Math.sqrt((x1-x3)*(x1-x3)+(y1-y3)*(y1-y3)+(z1-z3)*(z1-z3));
+    tmax=tmax/c;
+    tmax=(t1+t2+t3)/3-tmax/2;
+    var tmin=tmax-maxHeight/c;
+
+    interactionVariables()
+
+    var t=tmin; // Tijdstip van de interactie.
+
+    var teken=1;
+
+    function interactionLocation(t){
+     if(((V*V-R)*(t1-t)*(t1-t)+(2*V*W-Q)*(t1-t)+W*W-P)>0){
+      z=z1-V*(t1-t)-W+teken*Math.sqrt((V*V-R)*(t1-t)*(t1-t)+(2*V*W-Q)*(t1-t)+W*W-P);
+      y=y1+(B*(z-z1)+C*(t1-t)+D)/A;
+      x=x1+(E*(z-z1)+F*(t1-t)+G)/A;
+     };
+    }
+
+    interactionLocation(t);
+
+    if((x*x+y*y+z*z)<(x1*x1+y1*y1+z1*z1)) teken=-1; // Selecteer de oplossing boven het oppervlak.
+
+    t=tmax;
+    interactionLocation(t);
+    xmax=x;
+    ymax=y;
+    zmax=z;
+
+    t=tmin;
+    interactionLocation(t);
+    xmin=x;
+    ymin=y;
+    zmin=z;
+
+    if(graphSize=Math.abs(xmax-xmin)) graphSize=Math.abs(xmax-xmin);
+    if(graphSize<Math.abs(ymax-ymin)) graphSize=Math.abs(ymax-ymin);
+    if(graphSize<Math.abs(zmax-zmin)) graphSize=Math.abs(zmax-zmin);
+    xmean=(xmax+xmin)/2;
+    ymean=(ymax+ymin)/2;
+    zmean=(zmax+zmin)/2;
+
+    deltat=(tmax-tmin)/100;
+    t=tmin;
+    XY=[[xmax,ymax]];
+    YZ=[[ymax,zmax]];
+    XZ=[[xmax,zmax]];
+    for(i=0;i<100;i++){
+     interactionLocation(t);
+     t+=deltat;
+     XY.push([x,y]);
+     YZ.push([y,z]);
+     XZ.push([x,z])
+    }
+   }
+
+   function generateGraph(){
+    $(document).ready(function(){
+     var plot1 = $.jqplot ('chartXY', [XY,[[x1,y1],[x2,y2],[x3,y3],[x1,y1]]], {legend:{show:false}, title:'Location interaction top', 
+                            axes:{xaxis:{label:"x [m]", ticks:[(xmean-graphSize/1.5),xmean,(xmean+graphSize/1.5)],
+                                         labelRenderer: $.jqplot.CanvasAxisLabelRenderer}, 
+                                  yaxis:{label:"y [m]", ticks:[(ymean-graphSize/1.5),ymean,(ymean+graphSize/1.5)],
+                                         labelRenderer: $.jqplot.CanvasAxisLabelRenderer}},
+                            series:[{color:'#cc0000', label:'(x,y)', showMarker:false}]}
+     );
+
+     var plot2 = $.jqplot ('chartYZ', [YZ,[[y1,z1],[y2,z2],[y3,z3],[y1,z1]]], {legend:{show:false}, title:'Location interaction front', 
+                           axes:{xaxis:{label:"y [m]",ticks:[(ymean-graphSize/1.5),ymean,(ymean+graphSize/1.5)],
+                                        labelRenderer: $.jqplot.CanvasAxisLabelRenderer}, 
+                                 yaxis:{label:"z (Earth's Axis) [m]",ticks:[(zmean-graphSize/1.5),zmean,(zmean+graphSize/1.5)],
+                                        labelRenderer: $.jqplot.CanvasAxisLabelRenderer}},
+                           series:[{color:'#cc0000', label:'(z,y)', showMarker:false}]}
+     );
+
+     var plot3 = $.jqplot ('chartXZ', [XZ,[[x1,z1],[x2,z2],[x3,z3],[x1,z1]]], {legend:{show:false}, title:'Location interaction side', 
+                           axes:{xaxis:{label:"x [m]",ticks:[(xmean-graphSize/1.5),xmean,(xmean+graphSize/1.5)],
+                                        labelRenderer: $.jqplot.CanvasAxisLabelRenderer}, 
+                                 yaxis:{label:"z (Earth's Axis) [m]",ticks:[(zmean-graphSize/1.5),zmean,(zmean+graphSize/1.5)],
+                                        labelRenderer: $.jqplot.CanvasAxisLabelRenderer}},
+                                 series:[{color:'#cc0000', label:'(x,z)', showMarker:false}]}
+     );
+    });
+   }
+
+   calculateTrace();
+   generateGraph();
+
+  </script>
+ </head>
+ <body>
+  <table>
+   <tr>
+    <td>
+     <div id="chartXZ" style="height:275px;width:300px;"></div>
+    </td>
+    <td>
+     <div id="chartYZ" style="height:275px;width:300px;"></div>
+    </td>
+   </tr>
+   <tr>
+    <td>
+     <div id="chartXY" style="height:275px;width:300px;"></div>
+    </td>
+    <td></td>
+   </tr>
+  </table>
+ </body>
+</html>
